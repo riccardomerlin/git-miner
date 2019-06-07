@@ -1,0 +1,14 @@
+{
+   "name": "git-miner",
+   "version": "1.0.0",
+   "description": "mine git data",
+   "main": "index.js",
+   "bin": {
+      "git-miner": "./index.js"
+   },
+   "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+   },
+   "author": "Riccardo Merlin",
+   "license": "ISC"
+}
