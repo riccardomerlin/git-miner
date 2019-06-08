@@ -1,14 +1,21 @@
 {
-   "name": "git-miner",
-   "version": "1.0.0",
-   "description": "mine git data",
-   "main": "index.js",
-   "bin": {
-      "git-miner": "./index.js"
-   },
-   "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1"
-   },
-   "author": "Riccardo Merlin",
-   "license": "ISC"
+  "name": "git-miner",
+  "version": "1.0.0",
+  "description": "mine git data",
+  "main": "index.js",
+  "bin": {
+    "git-miner": "./index.js"
+  },
+  "scripts": {
+    "test": "jest --detectOpenHandles"
+  },
+  "author": "Riccardo Merlin",
+  "license": "ISC",
+  "devDependencies": {
+    "jest": "^24.8.0",
+    "standard": "^12.0.1"
+  },
+  "dependencies": {
+    "yargs": "^13.2.4"
+  }
 }
