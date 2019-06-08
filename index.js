@@ -13,30 +13,41 @@ if (!argv.file) {
 const fileName = argv.file
 const tabLength = argv.tab
 
-const ls = spawn('git', ['log', '--pretty=%H', '--', fileName])
-ls.stdout.setEncoding('utf8')
-const rl = readline.createInterface({ input: ls.stdout })
-const complexityCalculator = new ConplexityCalculator(tabLength)
+const gitLog = spawn('git', [
+  'log',
+  '--pretty=format:%H %aI',
+  '--',
+  fileName])
 
-rl.on('line', async (gitHash) => {
+gitLog.stdout.setEncoding('utf8')
+gitLog.stderr.setEncoding('utf8')
+const rl = readline.createInterface({ input: gitLog.stdout })
+const complexityCalculator = new ConplexityCalculator(tabLength)
+console.log('date,complexity')
+
+rl.on('line', async (line) => {
   try {
-    const fileRevisionBlobs = await getFileRevisionBlobs(gitHash, fileName)
-    for (const blob of fileRevisionBlobs) {
-      const complexity = await getBlobComplexity(blob)
-      console.log(`complexity of ${blob}: ${complexity}`)
-    }
+    const lineParts = line.split(' ')
+    const gitHash = lineParts[0]
+    const authorDate = /\d{4}-\d{2}-\d{2}/.exec(lineParts[1])
+    const blobHash = await getFileRevisionBlobHash(gitHash, fileName)
+    if (!blobHash) { return }
+
+    const complexity = await getFileComplexity(blobHash)
+
+    console.log(`${authorDate},${complexity}`)
   } catch (error) {
     console.log(error)
   }
 })
 
-ls.stderr.on('data', (data) => {
-  console.log(`stderr: ${data}`)
+gitLog.stderr.on('data', (data) => {
+  console.log(data)
 })
 
-async function getFileRevisionBlobs (gitHash, fileName) {
+async function getFileRevisionBlobHash (gitHash, fileName) {
   return new Promise((resolve, reject) => {
-    const blobs = []
+    let blobHash
     const lsTree = spawn('git', ['ls-tree', gitHash, '--', fileName])
     lsTree.stdout.setEncoding('utf8')
     lsTree.stderr.setEncoding('utf8')
@@ -46,12 +57,11 @@ async function getFileRevisionBlobs (gitHash, fileName) {
     const regexFilter = /(blob\s.+)(\s)/
     lsTreeReadline.on('line', (data) => {
       const match = regexFilter.exec(data)
-      const blobHash = match[1].split(' ')[1]
-      blobs.push(blobHash)
+      blobHash = match[1].split(' ')[1]
     })
 
     lsTreeReadline.on('close', () => {
-      resolve(blobs)
+      resolve(blobHash)
     })
 
     lsTree.stderr.on('data', (error) => {
@@ -60,7 +70,7 @@ async function getFileRevisionBlobs (gitHash, fileName) {
   })
 }
 
-async function getBlobComplexity (blobHash) {
+async function getFileComplexity (blobHash) {
   return new Promise((resolve, reject) => {
     let complexity = 0
     const catFile = spawn('git', ['cat-file', 'blob', blobHash])
