@@ -3,6 +3,7 @@
 const { spawn } = require('child_process')
 const readline = require('readline')
 const { argv } = require('yargs')
+
 const ComplexityCalculator = require('./complexity-calculator')
 
 const tabLength = argv.tab
@@ -15,7 +16,7 @@ async function main () {
   if (argv._ && argv._.length > 0) {
     files.push(...argv._)
   } else {
-    files = await gitLsFileNames()
+    files = await runCommand('git', ['ls-files'], parseGitLsFiles)
   }
 
   if (files.length === 0) {
@@ -23,115 +24,65 @@ async function main () {
     process.exit(0)
   }
 
-  printAsCsv()
-}
-
-async function printAsCsv (files) {
   console.log('file,date,complexity')
 
   files.map(async (file) => {
-    const fileRevisionDateHashes = await gitLogDateHash(file)
+    const fileRevisionDateHashes =
+      await runCommand('git', ['log', '--pretty=format:%H %aI', '--', file], parseGitLogAction, [file])
+
     fileRevisionDateHashes.map(async (entry) => {
-      const blobHash = await getFileRevisionBlobHash(entry.gitHash, entry.fileName)
-      const complexity = await getWhitespaceComplexity(blobHash)
+      const blobHash = await runCommand('git', ['ls-tree', entry.gitHash, '--', entry.fileName], parseGitLsTree)
+      const complexity = await runCommand('git', ['cat-file', 'blob', blobHash], getWhitespaceComplexity)
+
       console.log(`${entry.fileName},${entry.authorDate},${complexity}`)
     })
   })
 }
 
-async function gitLsFileNames () {
+async function runCommand (name, args, action, actionArgs = []) {
   return new Promise((resolve, reject) => {
-    const files = []
+    let result
+    const command = spawn(name, args)
+    command.stdout.setEncoding('utf8')
+    command.stderr.setEncoding('utf8')
 
-    const gitLsFiles = spawn('git', ['ls-files'])
-    gitLsFiles.stdout.setEncoding('utf8')
-    gitLsFiles.stderr.setEncoding('utf8')
+    command.stderr.on('data', (data) => reject(data))
 
-    gitLsFiles.stderr.on('data', (data) => reject(data))
+    const rl = readline.createInterface({ input: command.stdout })
+    rl.on('close', () => resolve(result))
 
-    const gitLsFilesReadline = readline.createInterface({ input: gitLsFiles.stdout })
-
-    gitLsFilesReadline.on('line', (file) => {
-      files.push(file)
-    })
-
-    gitLsFilesReadline.on('close', () => resolve(files))
-  })
-}
-
-async function gitLogDateHash (fileName) {
-  return new Promise(async (resolve, reject) => {
-    const gitLog = spawn('git', [
-      'log',
-      '--pretty=format:%H %aI',
-      '--',
-      fileName])
-
-    gitLog.stdout.setEncoding('utf8')
-    gitLog.stderr.setEncoding('utf8')
-
-    gitLog.stderr.on('data', (data) => {
-      reject(data)
-    })
-
-    const dateHash = []
-    const rl = readline.createInterface({ input: gitLog.stdout })
     rl.on('line', (line) => {
-      const lineParts = line.split(' ')
-      const gitHash = lineParts[0]
-      const authorDate = /\d{4}-\d{2}-\d{2}/.exec(lineParts[1])[0]
-      dateHash.push({ fileName, authorDate, gitHash })
-    })
-
-    rl.on('close', () => {
-      resolve(dateHash)
+      result = action(line, result, ...actionArgs)
     })
   })
 }
 
-async function getFileRevisionBlobHash (gitHash, fileName) {
-  return new Promise((resolve, reject) => {
-    let blobHash
-    const lsTree = spawn('git', ['ls-tree', gitHash, '--', fileName])
-    lsTree.stdout.setEncoding('utf8')
-    lsTree.stderr.setEncoding('utf8')
+function parseGitLogAction (line, results, fileName) {
+  const lineParts = line.split(' ')
+  const gitHash = lineParts[0]
+  const authorDate = /\d{4}-\d{2}-\d{2}/.exec(lineParts[1])[0]
+  if (!results) { results = [] }
 
-    lsTree.stderr.on('data', (error) => {
-      reject(error)
-    })
-
-    const rl = readline.createInterface({ input: lsTree.stdout })
-
-    const regexFilter = /(blob\s.+)(\s)/
-    rl.on('line', (data) => {
-      const match = regexFilter.exec(data)
-      blobHash = match[1].split(' ')[1]
-    })
-
-    rl.on('close', () => {
-      resolve(blobHash)
-    })
-  })
+  results.push({ fileName, authorDate, gitHash })
+  return results
 }
 
-async function getWhitespaceComplexity (blobHash) {
-  return new Promise((resolve, reject) => {
-    let complexity = 0
-    const catFile = spawn('git', ['cat-file', 'blob', blobHash])
-    catFile.stdout.setEncoding('utf8')
-    catFile.stderr.setEncoding('utf8')
+function parseGitLsFiles (file, results) {
+  if (!results) { results = [] }
 
-    catFile.stderr.on('data', (error) => {
-      reject(error)
-    })
+  results.push(file)
+  return results
+}
 
-    const rl = readline.createInterface({ input: catFile.stdout })
-    rl.on('line', (line) => {
-      complexity += complexityCalculator.whiteSpaceComplexity(line)
-    })
+function parseGitLsTree (line) {
+  const regexFilter = /(blob\s.+)(\s)/
+  const match = regexFilter.exec(line)
+  return match[1].split(' ')[1]
+}
 
-    rl.on('close', () => {
-      resolve(complexity)
-    })
-  })
+function getWhitespaceComplexity (line, complexity) {
+  if (!complexity) { complexity = 0 }
+
+  complexity += complexityCalculator.whiteSpaceComplexity(line)
+  return complexity
 }
