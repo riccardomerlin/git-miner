@@ -16,13 +16,12 @@ async function main () {
     try {
       files = await git.lsFiles()
     } catch (error) {
-      throw error
+      exit(error.message)
     }
   }
 
   if (files.length === 0) {
-    console.log('No files to process')
-    process.exit(0)
+    exit('No files to process')
   }
 
   console.log('file,date,complexity')
@@ -37,7 +36,12 @@ async function main () {
         console.log(`${entry.fileName},${entry.authorDate},${complexity}`)
       })
     } catch (error) {
-      throw error
+      exit(error.message)
     }
   })
+}
+
+function exit (errorMessage) {
+  console.log(errorMessage)
+  process.exit(0)
 }
