@@ -23,7 +23,7 @@ async function main () {
 
     const collection = await Promise.all(files.map(async (file) => {
       const fileRevisions = await git.log(file)
-      if (!fileRevisions) { throw new Error(`No git log for "${file}"`) }
+      if (!fileRevisions) { return }
 
       const revisionsComplexity = await getRevisionsComplexity(fileRevisions, git)
 
@@ -33,7 +33,7 @@ async function main () {
       }
     }))
 
-    printCsv(collection)
+    printCsv(collection.filter((value) => typeof value !== 'undefined'))
   } catch (error) {
     exit(error.message)
   }
@@ -51,6 +51,10 @@ async function getRevisionsComplexity (fileRevisions, git) {
 }
 
 function printCsv (collection) {
+  if (!collection || collection.length === 0) {
+    exit('No data available')
+  }
+
   console.log('file,date,complexity')
 
   collection.forEach((entry) => {
