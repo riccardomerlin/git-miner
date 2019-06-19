@@ -4,7 +4,7 @@ const { argv } = require('yargs')
 
 const GitApi = require('./git-api')
 
-main()
+setImmediate(() => main())
 
 async function main () {
   const git = new GitApi(argv.tab)
@@ -24,19 +24,31 @@ async function main () {
     exit('No files to process')
   }
 
-  console.log('file,date,complexity')
-
-  files.map(async (file) => {
+  const collection = await Promise.all(files.map(async (file) => {
     try {
       const fileRevisionDateHashes = await git.log(file)
-      fileRevisionDateHashes.map(async (entry) => {
+      if (!fileRevisionDateHashes) { throw new Error(`No git log for "${file}"`) }
+
+      const revisions = await Promise.all(fileRevisionDateHashes.map(async (entry) => {
         const blobHash = await git.lsTree(entry.gitHash, entry.fileName)
         const complexity = await git.whitespaceComplexity(blobHash)
 
-        console.log(`${entry.fileName},${entry.authorDate},${complexity}`)
-      })
+        return `${entry.fileName},${entry.authorDate},${complexity}`
+      }))
+
+      return revisions
     } catch (error) {
       exit(error.message)
+    }
+  }))
+
+  console.log('file,date,complexity')
+
+  collection.forEach((entry) => {
+    if (Array.isArray(entry)) {
+      entry.forEach((item) => console.log(item))
+    } else {
+      console.log(entry)
     }
   })
 }
