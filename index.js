@@ -21,43 +21,49 @@ async function main () {
       exit('No files to process')
     }
 
-    const collection = await Promise.all(files.map(async (file) => {
-      const fileRevisions = await git.log(file)
-      if (!fileRevisions) { return }
+    const filesComplexity = await getFilesComplexity(files, git)
 
-      const revisionsComplexity = await getRevisionsComplexity(fileRevisions, git)
-
-      return {
-        fileName: file,
-        revisions: revisionsComplexity
-      }
-    }))
-
-    printCsv(collection.filter((value) => typeof value !== 'undefined'))
+    printCsv(filesComplexity)
   } catch (error) {
     exit(error.message)
   }
 }
 
-async function getRevisionsComplexity (fileRevisions, git) {
-  return Promise.all(fileRevisions.map(async (fileRevision) => {
-    const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
-    const revisionComplexity = await git.whitespaceComplexity(revisionBlobHash)
+async function getFilesComplexity (files, git) {
+  const filesComplexity = await Promise.all(files.map(async (file) => {
+    const fileRevisions = await git.log(file)
+    if (!fileRevisions) {
+      return
+    }
+    const revisionsComplexity = await getRevisionsComplexity(fileRevisions, git)
     return {
-      date: fileRevision.authorDate,
-      complexity: revisionComplexity
+      fileName: file,
+      revisions: revisionsComplexity
     }
   }))
+
+  return filesComplexity.filter((value) => typeof value !== 'undefined')
+
+  async function getRevisionsComplexity (fileRevisions, git) {
+    return Promise.all(fileRevisions.map(async (fileRevision) => {
+      const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
+      const revisionComplexity = await git.whitespaceComplexity(revisionBlobHash)
+      return {
+        date: fileRevision.authorDate,
+        complexity: revisionComplexity
+      }
+    }))
+  }
 }
 
-function printCsv (collection) {
-  if (!collection || collection.length === 0) {
+function printCsv (filesComplexity) {
+  if (!filesComplexity || filesComplexity.length === 0) {
     exit('No data available')
   }
 
   console.log('file,date,complexity')
 
-  collection.forEach((entry) => {
+  filesComplexity.forEach((entry) => {
     if (!entry.revisions.length > 0) { return }
 
     entry.revisions.forEach((revision) => {
