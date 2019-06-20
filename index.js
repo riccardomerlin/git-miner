@@ -32,10 +32,11 @@ async function main () {
 async function getFilesComplexity (files, git) {
   const filesComplexity = await Promise.all(files.map(async (file) => {
     const fileRevisions = await git.log(file)
-    if (!fileRevisions) {
-      return
-    }
-    const revisionsComplexity = await getRevisionsComplexity(fileRevisions, git)
+    if (!fileRevisions) { return }
+
+    const revisionsComplexity = await Promise.all(
+      fileRevisions.map(async (fileRevision) => getRevisionComplexity(fileRevision, git)))
+
     return {
       fileName: file,
       revisions: revisionsComplexity
@@ -43,16 +44,14 @@ async function getFilesComplexity (files, git) {
   }))
 
   return filesComplexity.filter((value) => typeof value !== 'undefined')
+}
 
-  async function getRevisionsComplexity (fileRevisions, git) {
-    return Promise.all(fileRevisions.map(async (fileRevision) => {
-      const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
-      const revisionComplexity = await git.whitespaceComplexity(revisionBlobHash)
-      return {
-        date: fileRevision.authorDate,
-        complexity: revisionComplexity
-      }
-    }))
+async function getRevisionComplexity (fileRevision, git) {
+  const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
+  const revisionComplexity = await git.whitespaceComplexity(revisionBlobHash)
+  return {
+    date: fileRevision.authorDate,
+    complexity: revisionComplexity
   }
 }
 
