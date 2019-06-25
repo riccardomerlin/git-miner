@@ -7,6 +7,13 @@ class GitApi {
     this._complexityCalculator = new ComplexityCalculator(tabLength)
   }
 
+  catFile (blobHash) {
+    const command = spawn('git', ['cat-file', 'blob', blobHash])
+    command.stdout.setEncoding('utf8')
+    command.stderr.setEncoding('utf8')
+    return command
+  }
+
   log (file) {
     return this._runCommand(['log', '--pretty=format:%H %aI', '--', file], this._parseGitLog, [file])
   }
