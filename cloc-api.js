@@ -1,30 +1,18 @@
-const { spawn } = require('child_process')
-const readline = require('readline')
+const util = require('util')
+const exec = util.promisify(require('child_process').exec)
 
 class ClocApi {
-  countLines (fileName) {
-    return new Promise((resolve, reject) => {
-      const cloc = spawn('cloc', [fileName, '--csv', '--quiet', '--hide-rate'])
-      cloc.stdout.setEncoding('utf-8')
-      cloc.stderr.setEncoding('utf-8')
-      const rl = readline.createInterface({ input: cloc.stdout })
+  async countLines (fileName) {
+    const { stdout, stderr } = await exec(`cloc ${fileName} --csv --quiet --hide-rate`)
+    if (stderr) {
+      console.error(stderr)
+    }
+    const re = /^\d+.*$/img
+    const match = re.exec(stdout)
+    if (!match) { return 0 }
 
-      cloc.stderr.on('error', (error) => reject(error))
-
-      let isFirstRow = true
-      let result
-      rl.on('line', (line) => {
-        if (isFirstRow) {
-          isFirstRow = false
-          return
-        }
-
-        const values = line.split(',')
-        result = values[values.length - 1]
-      })
-
-      rl.on('close', () => resolve(result))
-    })
+    const parts = match[0].split(',')
+    return parts[parts.length - 1]
   }
 }
 module.exports = ClocApi

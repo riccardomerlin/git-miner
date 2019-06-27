@@ -57,14 +57,22 @@ async function getRevisionComplexity (fileRevision, git, cloc) {
   const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
   const catFileCommand = git.catFile(revisionBlobHash)
   const fileName = await writeRevisionFile(catFileCommand.stdout, fileRevision.fileName)
-
   const linesOfCode = await cloc.countLines(fileName)
+  removeRevisionFile(fileName)
   const revisionComplexity = await git.whitespaceComplexity(revisionBlobHash)
   return {
     date: fileRevision.authorDate,
     complexity: revisionComplexity,
     linesOfCode
   }
+}
+
+function removeRevisionFile (filePath) {
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error(err)
+    }
+  })
 }
 
 async function writeRevisionFile (stream, originalPathFileName) {
