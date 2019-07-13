@@ -1,5 +1,6 @@
 # git-miner
 Mine git data to calculate complexity trends.
+Inspired by [maat-scripts](https://github.com/adamtornhill/maat-scripts) [Adam Tornhill](https://github.com/adamtornhill)
 
 ## Get started
 ```bash
