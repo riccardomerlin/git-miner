@@ -15,7 +15,7 @@ class GitApi {
   }
 
   log (file) {
-    return this._runCommand(['log', '--pretty=format:%H %aI', '--', file], this._parseGitLog, [file])
+    return this._runCommand(['log', '--pretty=format:%H %aI', '--follow', '--', file], this._parseGitLog, [file])
   }
 
   lsFiles (gitHash, fileName) {
