@@ -46,15 +46,17 @@ async function getFilesComplexity (files, git, cloc, complexityCalculator) {
 
     return {
       fileName: file,
-      revisions: revisionsComplexity
+      revisions: revisionsComplexity.filter((revisionComplexity) => typeof revisionComplexity !== 'undefined')
     }
   }))
 
-  return filesComplexity.filter((value) => typeof value !== 'undefined')
+  return filesComplexity.filter((fileComplexity) => typeof fileComplexity !== 'undefined')
 }
 
 async function getRevisionComplexity (fileRevision, git, cloc) {
   const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
+  if(!revisionBlobHash) return
+  
   const catFileCommand = git.catFile(revisionBlobHash)
   const fileName = await writeRevisionFile(catFileCommand.stdout, fileRevision.fileName)
   const linesOfCode = await cloc.countLines(fileName)

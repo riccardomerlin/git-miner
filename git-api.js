@@ -15,10 +15,10 @@ class GitApi {
   }
 
   log (file) {
-    return this._runCommand(['log', '--pretty=format:%H %aI', '--follow', '--', file], this._parseGitLog, [file])
+    return this._runCommand(['--no-pager', 'log', '--pretty=format:%H %aI', '--follow', '--', file], this._parseGitLog, [file])
   }
 
-  lsFiles (gitHash, fileName) {
+  lsFiles () {
     return this._runCommand(['ls-files'], this._parseGitLsFiles)
   }
 
@@ -40,11 +40,15 @@ class GitApi {
       command.stderr.on('data', (data) => reject(data))
 
       const rl = readline.createInterface({ input: command.stdout })
-      rl.on('close', () => resolve(result))
-
-      rl.on('line', (line) => {
-        result = action(line, result, ...actionArgs)
+      rl.on('close', () => {
+        resolve(result)
       })
+
+      if(action) {
+        rl.on('line', (line) => {
+          result = action(line, result, ...actionArgs)
+        })
+      }
     })
   }
 
