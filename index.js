@@ -13,7 +13,7 @@ setImmediate(() => main())
 
 async function main () {
   try {
-    const git = new GitApi()
+    const git = new GitApi(argv.tab)
 
     let files = []
     if (argv._ && argv._.length > 0) {
@@ -27,8 +27,7 @@ async function main () {
     }
 
     const cloc = new ClocApi()
-    const complexityCalculator = new ComplexityCalculator(argv.tab)
-    const filesComplexity = await getFilesComplexity(files, git, cloc, complexityCalculator)
+    const filesComplexity = await getFilesComplexity(files, git, cloc)
 
     printCsv(filesComplexity)
   } catch (error) {
@@ -36,13 +35,13 @@ async function main () {
   }
 }
 
-async function getFilesComplexity (files, git, cloc, complexityCalculator) {
+async function getFilesComplexity (files, git, cloc) {
   const filesComplexity = await Promise.all(files.map(async (file) => {
     const fileRevisions = await git.log(file)
     if (!fileRevisions) { return }
 
     const revisionsComplexity = await Promise.all(
-      fileRevisions.map(async (fileRevision) => getRevisionComplexity(fileRevision, git, cloc, complexityCalculator)))
+      fileRevisions.map(async (fileRevision) => getRevisionComplexity(fileRevision, git, cloc)))
 
     return {
       fileName: file,
