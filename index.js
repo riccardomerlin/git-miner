@@ -7,7 +7,6 @@ const filenamify = require('filenamify')
 
 const GitApi = require('./git-api')
 const ClocApi = require('./cloc-api')
-const ComplexityCalculator = require('./complexity-calculator')
 
 setImmediate(() => main())
 
@@ -54,8 +53,8 @@ async function getFilesComplexity (files, git, cloc) {
 
 async function getRevisionComplexity (fileRevision, git, cloc) {
   const revisionBlobHash = await git.lsTree(fileRevision.gitHash, fileRevision.fileName)
-  if(!revisionBlobHash) return
-  
+  if (!revisionBlobHash) return
+
   const catFileCommand = git.catFile(revisionBlobHash)
   const fileName = await writeRevisionFile(catFileCommand.stdout, fileRevision.fileName)
   const linesOfCode = await cloc.countLines(fileName)
